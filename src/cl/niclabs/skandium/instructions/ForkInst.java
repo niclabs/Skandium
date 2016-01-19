@@ -21,8 +21,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
 
+import cl.niclabs.skandium.events.When;
+import cl.niclabs.skandium.events.Where;
 import cl.niclabs.skandium.muscles.Merge;
 import cl.niclabs.skandium.muscles.Split;
+import cl.niclabs.skandium.skeletons.Skeleton;
 
 /**
  * This instruction holds the parallelism behavior of a {@link cl.niclabs.skandium.skeletons.Fork} skeleton.
@@ -31,46 +34,41 @@ import cl.niclabs.skandium.muscles.Split;
  */
 public class ForkInst extends  AbstractInstruction {
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes")
 	Split split; 
 	List<Stack<Instruction>> substacks; 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes")
 	Merge merge;
+	int id;
 	
 	/**
 	 * The main constructor.
 	 * @param split  The muscle used to divide the parameters.
 	 * @param stacks The code to execute for each subparam.
 	 * @param merge The code to merge the result of executing the stack on the subparam.
-	 * @param strace 
+	 * @param strace nested skeleton tree branch of the current execution.
 	 */
-	public ForkInst(Split<?, ?> split, List<Stack<Instruction>> stacks, Merge<?, ?> merge, StackTraceElement[] strace) {
+	public ForkInst(Split<?, ?> split, List<Stack<Instruction>> stacks, Merge<?, ?> merge, @SuppressWarnings("rawtypes") Skeleton[] strace, int id, int parent) {
 		super(strace);
 		this.split = split;
 		this.substacks = stacks;
 		this.merge = merge;
+		this.id = id;
+		this.parent = parent;
 	}
 
 	/**
-	 * Invokes the {@link Split} muscle is on param, and a creates a new stack for each subparam.
+	 * Invokes the {@link cl.niclabs.skandium.muscles.Split} muscle is on param, and a creates a new stack for each subparam.
 	 * {@inheritDoc}
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
 	public <P> Object interpret(P param, Stack<Instruction> stack, List<Stack<Instruction>> children) throws Exception {
-
+		(new EventInst(When.BEFORE, Where.SPLIT, strace, id, false, parent)).interpret(param, stack, children);
 		Object[] params = split.split(param);
 		
-		if(params.length != substacks.size()){
-			throw new Exception("Invalid number of divisions for Fork skeleton. Expected "+ substacks.size() +" but was "+params.length+".");
-		}
-		
-		// For each stack copy all of its elements
-		for(int i=0; i < params.length; i++){
-			children.add(copyStack(this.substacks.get(i)));
-		}
-		
-		stack.push(new MergeInst(merge, strace));
+		stack.push(new SplitInst(substacks, merge, strace, id, parent));
+		stack.push(new EventInst(When.AFTER, Where.SPLIT, strace, id, false, parent));
 		
 		return params;
 	}
@@ -87,6 +85,18 @@ public class ForkInst extends  AbstractInstruction {
 			newStacks.add(copyStack(substacks.get(i)));
 		}
 		
-		return new ForkInst(split, substacks, merge, strace);
+		return new ForkInst(split, newStacks, merge, copySkeletonTrace(), id, parent);
+	}
+	
+	@Override
+	public void setParent(int parent) {
+		for (Stack<Instruction> stack : substacks) {
+			for (Instruction inst : stack) {
+				if (inst.getParent() == this.parent) {
+					inst.setParent(parent);
+				}
+			}
+		}
+		super.setParent(parent);
 	}
 }

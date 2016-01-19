@@ -20,7 +20,7 @@ package cl.niclabs.skandium;
 import java.util.concurrent.Future;
 
 import cl.niclabs.skandium.skeletons.Skeleton;
-import cl.niclabs.skandium.skeletons.StackBuilder;
+import cl.niclabs.skandium.system.StackBuilder;
 import cl.niclabs.skandium.system.Task;
 import cl.niclabs.skandium.system.TaskExecutor;
 
@@ -32,7 +32,7 @@ import cl.niclabs.skandium.system.TaskExecutor;
  * To compute a different skeleton program, simply instantiate a new Stream via the
  * {@link Skandium#newStream} factory method.
  * 
- * Multiple Streams created from the same {@link Skandium} instance will share the same {@link java.util.concurrent.ExecutorService}. 
+ * Multiple Streams created from the same {@link cl.niclabs.skandium.Skandium} instance will share the same {@link java.util.concurrent.ExecutorService}. 
  * 
  * @author mleyton
  *
@@ -42,7 +42,7 @@ import cl.niclabs.skandium.system.TaskExecutor;
 public class Stream<P,R> {
 
 	TaskExecutor executor;
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes")
 	Skeleton skeleton;
 	
 	/**

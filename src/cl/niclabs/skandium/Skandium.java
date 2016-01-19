@@ -1,4 +1,4 @@
-/*   Skandium: A Java(TM) based parallel skeleton library.
+/*   Skandium: A Java(TM) based parallel skeleton library. 
  *   
  *   Copyright (C) 2009 NIC Labs, Universidad de Chile.
  * 
@@ -17,8 +17,10 @@
  */
 package cl.niclabs.skandium;
 
+import cl.niclabs.skandium.events.MaxThreadPoolListener;
 import cl.niclabs.skandium.skeletons.Skeleton;
 import cl.niclabs.skandium.system.TaskExecutor;
+import cl.niclabs.skandium.system.events.SkandiumEventRegistry;
 
 /**
  * This class is the entry point for the <code>Skandium</code> library.
@@ -31,6 +33,8 @@ public class Skandium {
 
 	TaskExecutor executor;
 	private static Skandium singleton = null;
+	private SkandiumEventRegistry eregis;
+	private int maxThreads;
 	
 	/**
 	 * A constructor which creates a new Skandium instance with a maximum number of computation 
@@ -45,10 +49,31 @@ public class Skandium {
 	 * @param maxThreads The maximum number of threads to compute concurrently. This number must be larger than 1.
 	 */
 	public Skandium(int maxThreads){
-		
+		this.maxThreads = maxThreads;
 		if(maxThreads < 1) throw new IllegalArgumentException("The specified number of threads must be larger than 1");
 		
-		executor = new TaskExecutor(maxThreads);
+		executor = new TaskExecutor(maxThreads);		
+		eregis = new SkandiumEventRegistry();
+	}
+
+	/**
+	 * Sets the maximum number of threads using during a Skeleton execution.
+	 * @param maxThreads The maximum number of threads to compute concurrently. This number must be larger than 1.
+	 */
+	public void setMaxThreads(int maxThreads) {
+		
+		this.maxThreads = maxThreads;
+
+		if(maxThreads < 1) throw new IllegalArgumentException("The specified number of threads must be larger than 1");
+		
+		executor.setCorePoolSize(maxThreads);
+		executor.setMaximumPoolSize(maxThreads);
+		eregis.triggerEvent(executor.getMaximumPoolSize()); 
+
+	}
+	
+	public int getMaxThreads() {
+		return maxThreads;
 	}
 	
 	/**
@@ -56,7 +81,7 @@ public class Skandium {
 	 * @param <P> The type of skeleton program's input.
 	 * @param <R> The type of the skeleton programs' result.
 	 * @param skeleton  The skeleton program which will be used to compute each parameter entered through the {@link Stream}.
-	 * @return A new {@link Stream} associated with the specified {@link Skeleton} program.
+	 * @return A new {@link Stream} associated with the specified {@link cl.niclabs.skandium.skeletons.Skeleton} program.
 	 */
 	public <P,R> Stream<P,R> newStream(Skeleton<P,R> skeleton){
 		
@@ -85,6 +110,16 @@ public class Skandium {
 	}
 	
 	public static String version(){
-		return "1.0b2";
+		return "1.1b1";
+	}
+
+	/**
+	 * Adds a new {@link MaxThreadPoolListener}, which will be executed to inform the current maximum number of threads configured.
+	 * @param l The maximum-number-of-threads event listener.
+	 * @return true if the listener was registered correctly and fale otherwise.
+	 */
+	public void setListener(MaxThreadPoolListener l) {
+		eregis.setListener(l);
+		eregis.triggerEvent(executor.getMaximumPoolSize());
 	}
 }

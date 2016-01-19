@@ -48,7 +48,7 @@ public class Task implements Runnable, Comparable<Task>{
 	long unfinishedChildren;		//The number of unfinished children tasks.
 	Throwable exception;			//The current exception.
 	
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes")
 	SkandiumFuture future;			//The future object (if this is a root task) which will hold the computation's result.
 	TaskExecutor executor;			//The executor service used for computation.
 
@@ -76,7 +76,7 @@ public class Task implements Runnable, Comparable<Task>{
 	 * @param priority The priority of this <code>Task</code>.
 	 * @param executor The executor service used to compute this <code>Task</code>.
 	 */
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "rawtypes" })
 	Task(Task root, Task parent, Object P, Stack<Instruction> stack, int priority, TaskExecutor executor){
 		this.id       = random.nextLong();
 		this.root     = root;
@@ -281,6 +281,7 @@ public class Task implements Runnable, Comparable<Task>{
 	 * 
 	 * If the <code>Task</code> is root, then the future is updated with the result.
 	 */
+	@SuppressWarnings("unchecked")
 	protected <P> void notifyParent() {
 
 		if(this.isRoot()){

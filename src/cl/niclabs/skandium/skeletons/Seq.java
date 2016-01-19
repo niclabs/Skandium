@@ -21,13 +21,13 @@ import cl.niclabs.skandium.muscles.Execute;
 import cl.niclabs.skandium.muscles.Muscle;
 
 /**
- * A Seq skeleton is used to terminate recursive nesting of {@link Skeleton}s.
+ * A Seq skeleton is used to terminate recursive nesting of {@link cl.niclabs.skandium.skeletons.Skeleton}s.
  * It simply wraps an {@link Execute} {@link Muscle} to be nested inside another skeleton. 
  * 
  * @author mleyton
  *
- * @param <P> The input type of the {@link Skeleton}.
- * @param <R> The result type of the {@link Skeleton}.
+ * @param <P> The input type of the {@link cl.niclabs.skandium.skeletons.Skeleton}.
+ * @param <R> The result type of the {@link cl.niclabs.skandium.skeletons.Skeleton}.
  */
 public class Seq<P,R> extends AbstractSkeleton<P,R> {
 
@@ -37,10 +37,15 @@ public class Seq<P,R> extends AbstractSkeleton<P,R> {
 		this.execute = execute;
 	}
 	
+	public Execute<P,R> getExecute() {
+		return execute;
+	}
+	
 	/**
 	 * {@inheritDoc}
 	 */
     public void accept(SkeletonVisitor visitor) {
         visitor.visit(this);
     }
+
 }

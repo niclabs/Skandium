@@ -17,11 +17,11 @@
  */
 package cl.niclabs.skandium.instructions;
 
-import java.lang.reflect.Array;
 import java.util.List;
 import java.util.Stack;
 
 import cl.niclabs.skandium.muscles.Merge;
+import cl.niclabs.skandium.skeletons.Skeleton;
 
 /**
  * This is a utility instruction and does not represent a {@link cl.niclabs.skandium.skeletons.Skeleton} in particular.
@@ -32,17 +32,23 @@ import cl.niclabs.skandium.muscles.Merge;
  */
 public class MergeInst extends AbstractInstruction{
 	
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes")
 	Merge merge;
-	StackTraceElement[] strace;
 	
-	public MergeInst(Merge<?,?> merge, StackTraceElement[] strace) {
+	/**
+	 * The constructor
+	 * @param merge The code to merge the results of the execution of each subparam.
+	 * @param strace nested skeleton tree branch of the current execution.
+	 */
+	public MergeInst(Merge<?,?> merge, @SuppressWarnings("rawtypes") Skeleton[] strace) {
 		super(strace);
 		this.merge = merge;
 	}
 
 	/**
-	 * Merges a list of subparams into a single one using a {@link Merge} muscle.
+	 * Merges a list of subparams into a single one using a {@link cl.niclabs.skandium.muscles.Merge} muscle.
+	 * 
+	 * {@inheritDoc}
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
@@ -59,6 +65,6 @@ public class MergeInst extends AbstractInstruction{
 	@Override
 	public Instruction copy() {
 		
-		return new MergeInst(merge, strace);
+		return new MergeInst(merge, copySkeletonTrace());
 	}
 }

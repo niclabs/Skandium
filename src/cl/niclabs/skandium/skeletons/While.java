@@ -17,14 +17,18 @@
  */
 package cl.niclabs.skandium.skeletons;
 
+import cl.niclabs.skandium.events.ConditionListener;
+import cl.niclabs.skandium.events.IndexListener;
+import cl.niclabs.skandium.events.When;
+import cl.niclabs.skandium.events.Where;
 import cl.niclabs.skandium.muscles.Condition;
 import cl.niclabs.skandium.muscles.Execute;
 
 /**
- * A <code></code> {@link Skeleton}
+ * A <code></code> {@link cl.niclabs.skandium.skeletons.Skeleton}
  * @author mleyton
  *
- * @param <P> The input and output type of the {@link Skeleton}.
+ * @param <P> The input and output type of the {@link cl.niclabs.skandium.skeletons.Skeleton}.
  * */
 public class While<P> extends AbstractSkeleton<P,P> {
 
@@ -41,10 +45,34 @@ public class While<P> extends AbstractSkeleton<P,P> {
 		this(new Seq<P,P>(execute), condition);
 	}
 	
+	public Condition<P> getCondition() {
+		return condition;
+	}
+	
 	/**
 	 * {@inheritDoc}
 	 */
     public void accept(SkeletonVisitor visitor) {
         visitor.visit(this);
     }
+
+    public boolean addBeforeCondition(IndexListener<P> l) {
+    	return eregis.addListener(When.BEFORE, Where.CONDITION, l);
+    }
+
+    public boolean removeBeforeCondition(IndexListener<P> l) {
+    	return eregis.removeListener(When.BEFORE, Where.CONDITION, l);
+    }
+
+    public boolean addAfterCondition(ConditionListener<P> l) {
+    	return eregis.addListener(When.AFTER, Where.CONDITION, l);
+    }
+
+    public boolean removeAfterCondition(ConditionListener<P> l) {
+    	return eregis.removeListener(When.AFTER, Where.CONDITION, l);
+    }
+
+	public Skeleton<P, P> getSubskel() {
+		return subskel;
+	}
 }

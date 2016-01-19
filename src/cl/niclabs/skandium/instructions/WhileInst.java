@@ -20,8 +20,10 @@ package cl.niclabs.skandium.instructions;
 import java.util.List;
 import java.util.Stack;
 
-import cl.niclabs.skandium.instructions.Instruction;
+import cl.niclabs.skandium.events.When;
+import cl.niclabs.skandium.events.Where;
 import cl.niclabs.skandium.muscles.Condition;
+import cl.niclabs.skandium.skeletons.Skeleton;
 
 /**
  * Represents the behavior of a {@link cl.niclabs.skandium.skeletons.While} skeleton.
@@ -30,20 +32,23 @@ import cl.niclabs.skandium.muscles.Condition;
  */
 public class WhileInst extends AbstractInstruction {
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes")
 	Condition condition;
 	Stack<Instruction> substack;
+	int id;
 
 	/**
 	 * The main constructor
 	 * @param condition The condition to evaluate.
 	 * @param stack The code to execute while the condition holds true.
-	 * @param stackTraceElements 
+	 * @param strace nested skeleton tree branch of the current execution.
 	 */
-	public WhileInst(Condition<?> condition, Stack<Instruction> stack, StackTraceElement[] strace) {
+	public WhileInst(Condition<?> condition, Stack<Instruction> stack, @SuppressWarnings("rawtypes") Skeleton[] strace, int id, int parent) {
 		super(strace);
 		this.condition = condition;
 		this.substack = stack;
+		this.id = id;
+		this.parent = parent;
 	}
 
 	/**
@@ -54,11 +59,14 @@ public class WhileInst extends AbstractInstruction {
 	@Override
 	public <P> Object interpret(P param, Stack<Instruction> stack, List<Stack<Instruction>> children) throws Exception {
 		
-		if(condition.condition(param)){
+		(new EventInst(When.BEFORE, Where.CONDITION, strace, id, false, parent)).interpret(param, stack, children);
+		boolean cond = condition.condition(param);
+		if(cond){
 			stack.push(this);
 			stack.addAll(this.substack);
 		}
-		
+		stack.push(new EventInst(When.AFTER, Where.CONDITION, strace, id, cond, parent));
+				
 		return param;	
 	}
 
@@ -67,7 +75,17 @@ public class WhileInst extends AbstractInstruction {
 	 */
 	@Override
 	public Instruction copy() {
-		
-		return new WhileInst(condition, copyStack(substack), strace);
+		return new WhileInst(condition, copyStack(substack), copySkeletonTrace(), id, parent);
 	}
+
+	@Override
+	public void setParent(int parent) {
+		for (Instruction inst : substack) {
+			if (inst.getParent() == this.parent) {
+				inst.setParent(parent);
+			}
+		}		
+		super.setParent(parent);
+	}
+
 }

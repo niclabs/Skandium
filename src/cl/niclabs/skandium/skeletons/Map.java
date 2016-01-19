@@ -17,18 +17,21 @@
  */
 package cl.niclabs.skandium.skeletons;
 
+import cl.niclabs.skandium.events.IndexListener;
+import cl.niclabs.skandium.events.When;
+import cl.niclabs.skandium.events.Where;
 import cl.niclabs.skandium.muscles.Execute;
 import cl.niclabs.skandium.muscles.Merge;
 import cl.niclabs.skandium.muscles.Split;
 
 /**
- * A <code>Map</code> {@link Skeleton} divides an input parameter into a list of sub-parameters,
+ * A <code>Map</code> {@link cl.niclabs.skandium.skeletons.Skeleton} divides an input parameter into a list of sub-parameters,
  * executes the same code on each sub-parameter in parallel, and reduces the results.
  * 
  * @author mleyton
  *
- * @param <P> The input type of the {@link Skeleton}.
- * @param <R> The result type of the {@link Skeleton}. 
+ * @param <P> The input type of the {@link cl.niclabs.skandium.skeletons.Skeleton}.
+ * @param <R> The result type of the {@link cl.niclabs.skandium.skeletons.Skeleton}. 
  */
 public class Map<P,R> extends AbstractSkeleton<P,R> {
 
@@ -57,15 +60,59 @@ public class Map<P,R> extends AbstractSkeleton<P,R> {
 	 * @param execute The code to execute on each sub-parameter.
 	 * @param merge The code to reduce the results into a single one.
 	 */
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public <X,Y>  Map(Split<P,X> split, Execute<X,Y> execute, Merge<Y,R> merge){
 		this(split,new Seq(execute), merge);
 	}
 	
+	public Split<P,?> getSplit() {
+		return split;
+	}
+	
+	public Merge<?,R> getMerge() {
+		return merge;
+	}
+
 	/**
 	 * {@inheritDoc}
 	 */
     public void accept(SkeletonVisitor visitor) {
         visitor.visit(this);
     }
+
+    public boolean addBeforeSplit(IndexListener<P> l) {
+    	return eregis.addListener(When.BEFORE,Where.SPLIT,l);
+    }
+
+    public boolean removeBeforeSplit(IndexListener<P> l) {
+    	return eregis.removeListener(When.BEFORE,Where.SPLIT,l);
+    }
+
+    public <X> boolean addAfterSplit(IndexListener<X[]> l) {
+    	return eregis.addListener(When.AFTER,Where.SPLIT,l);
+    }
+
+    public <X> boolean removeAfterSplit(IndexListener<X[]> l) {
+    	return eregis.removeListener(When.AFTER,Where.SPLIT,l);
+    }
+
+    public <Y> boolean addBeforeMerge(IndexListener<Y[]> l) {
+    	return eregis.addListener(When.BEFORE,Where.MERGE,l);
+    }
+
+    public <Y> boolean removeBeforeMerge(IndexListener<Y[]> l) {
+    	return eregis.removeListener(When.BEFORE,Where.MERGE,l);
+    }
+
+    public boolean addAfterMerge(IndexListener<R> l) {
+    	return eregis.addListener(When.AFTER,Where.MERGE,l);
+    }
+
+    public boolean removeAfterMerge(IndexListener<R> l) {
+    	return eregis.removeListener(When.AFTER,Where.MERGE,l);
+    }
+
+	public Skeleton<?, ?> getSkeleton() {
+		return skeleton;
+	}
 }

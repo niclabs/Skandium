@@ -21,6 +21,13 @@ import java.util.concurrent.Future;
 
 import cl.niclabs.skandium.Skandium;
 import cl.niclabs.skandium.Stream;
+import cl.niclabs.skandium.events.GenericListener;
+import cl.niclabs.skandium.events.IndexListener;
+import cl.niclabs.skandium.events.When;
+import cl.niclabs.skandium.events.Where;
+import cl.niclabs.skandium.system.events.GenericListenerRegistry;
+import cl.niclabs.skandium.system.events.PatternEventRegistry;
+import cl.niclabs.skandium.system.events.SkandiumEventListener;
 
 /**
  * Abstract skeleton class from which all skeletons extends.
@@ -34,9 +41,11 @@ public abstract class AbstractSkeleton<P,R> implements Skeleton<P,R> {
 	
 	//holds reference to source code instantiation, for skeleton logical exceptions.
 	StackTraceElement trace;
+	PatternEventRegistry eregis;
 	
 	protected AbstractSkeleton(){		
 		trace  = getInitStackElement();
+		eregis = new PatternEventRegistry();
 	}
 	
 	/**
@@ -98,4 +107,86 @@ public abstract class AbstractSkeleton<P,R> implements Skeleton<P,R> {
 			
 		return new StackTraceElement(className, method, file, line);
 	}
+	
+	public StackTraceElement getTrace() {
+		return trace;
+	}
+	
+	public PatternEventRegistry getEregis() {
+		return eregis;
+	}
+
+	/**
+	 * Returns the listeners related the event: this {@link cl.niclabs.skandium.skeletons.Skeleton}, {@link When} and {@link Where}.  
+	 * An event is uniquely identified by this tree parameters. 
+	 * @param when Defines the event {@link When} dimension, it could be {@link When#BEFORE} or {@link When#AFTER} 
+	 * @param where Defines the event {@link Where} dimension, it could be {@link Where#SKELETON}, {@link Where#CONDITION}, {@link Where#SPLIT}, {@link Where#NESTED_SKELETON} or {@link Where#MERGE}
+	 * @return Array of {@link cl.niclabs.skandium.system.events.SkandiumEventListener}s related to the event.
+	 */
+    public SkandiumEventListener[] getListeners(When when, Where where) {
+		return eregis.getListeners(when, where);
+    }
+    
+    /**
+     * Register a {@link GenericListener} l
+     * @param l Listener to be registered
+     * @param pattern If its value is <code>Skeleton.class</code>, this listener is registered to 
+     * all nested skeletons from this current skeleton (included).  If <code>pattern</code> is an 
+     * specific skeleton class, the listener is registered to all nested skeleton instances of 
+     * such class (i.e. <code>Seq.class</code>)  
+     * @param when If <code>null</code> is passed as value, the listener is registered to all 
+     * {@link When#BEFORE} and {@link When#AFTER} events.  If <code>when</code> has a specific value 
+     * of {@link When} enumeration the listener is registered to all events related to that value. 
+     * (i.e. All {@link When#AFTER} events) 
+     * @param where If <code>null</code> is passed as value, the listener is registered to all 
+     * {@link Where} events.  If <code>where</code> has a specific value 
+     * of {@link Where} enumeration the listener is registered to all events related to that value. 
+     * (i.e. All {@link Where#CONDITION} related events)
+     * @return true if listener <code>l</code> has been registered successfully, false otherwise
+     */
+    @SuppressWarnings("rawtypes")
+	public boolean addGeneric(GenericListener l, Class pattern, When when, Where where) {
+    	GenericListenerRegistry gres = new GenericListenerRegistry(false, pattern, when, where, l);
+    	this.accept(gres);
+    	return gres.getR();
+    }
+
+    /**
+     * Removes a {@link GenericListener} l
+     * @param l Listener to be removed
+     * @param pattern If its value is <code>Skeleton.class</code>, the listener related to 
+     * all nested skeletons from this current skeleton (included) is removed.  
+     * If <code>pattern</code> is an specific skeleton class, the listener related to all nested 
+     * skeleton instances of such class (i.e. <code>Seq.class</code>) is removed   
+     * @param when If <code>null</code> is passed as value, the listener related to all 
+     * {@link When#BEFORE} and {@link When#AFTER} events is removed.  If <code>when</code> has a 
+     * specific value of {@link When} enumeration, the listener related to all events related to 
+     * that value (i.e. All {@link When#AFTER} events) is removed. 
+     * @param where If <code>null</code> is passed as value, the listener related to all 
+     * {@link Where} events is removed.  If <code>where</code> has a specific value 
+     * of {@link Where} enumeration, the listener related to that value is removed. 
+     * @return true if listener <code>l</code> has been removed successfully, false otherwise
+     */
+    @SuppressWarnings("rawtypes")
+	public boolean removeGeneric(GenericListener l, Class pattern, When when, Where where) {
+    	GenericListenerRegistry gres = new GenericListenerRegistry(true, pattern, when, where, l);
+    	this.accept(gres);
+    	return gres.getR();
+    }
+    
+    public boolean addBefore(IndexListener<P> l) {
+    	return eregis.addListener(When.BEFORE, Where.SKELETON, l);
+    }
+
+    public boolean removeBefore(IndexListener<P> l) {
+    	return eregis.removeListener(When.BEFORE, Where.SKELETON, l);
+    }
+
+    public boolean addAfter(IndexListener<R> l) {
+    	return eregis.addListener(When.AFTER, Where.SKELETON, l);
+    }
+
+    public boolean removeAfter(IndexListener<R> l) {
+    	return eregis.removeListener(When.AFTER, Where.SKELETON, l);
+    }
 }

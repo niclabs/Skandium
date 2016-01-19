@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.Stack;
 
 import cl.niclabs.skandium.muscles.Execute;
+import cl.niclabs.skandium.muscles.Muscle;
+import cl.niclabs.skandium.muscles.Split;
+import cl.niclabs.skandium.skeletons.Skeleton;
 
 /**
  * Represent the behavior of a {@link cl.niclabs.skandium.skeletons.Seq} {@link cl.niclabs.skandium.skeletons.Skeleton}, used to wrap an {@link Execute} muscle.
@@ -29,15 +32,15 @@ import cl.niclabs.skandium.muscles.Execute;
  */
 public class SeqInst extends AbstractInstruction {
 
-	@SuppressWarnings("unchecked")
-	Execute execute;
+	@SuppressWarnings("rawtypes")
+	Muscle execute;
 
 	/**
 	 * The main constructor.
 	 * @param execute The {@link cl.niclabs.skandium.muscles.Muscle} to execute. 
-	 * @param strace The logical stack trace of this instruction.
+	 * @param strace nested skeleton tree branch of the current execution.
 	 */
-	public SeqInst(Execute<?,?> execute, StackTraceElement[] strace){
+	public SeqInst(Muscle<?,?> execute, @SuppressWarnings("rawtypes") Skeleton[] strace){
 		super(strace);
 		this.execute = execute;
 	}
@@ -47,11 +50,12 @@ public class SeqInst extends AbstractInstruction {
 	 * 
 	 * {@inheritDoc}
 	 */
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public <P> Object interpret(P param, Stack<Instruction> stack, List<Stack<Instruction>> children) throws Exception {
 		
-		return execute.execute(param);
+		if (execute instanceof Split) return ((Split)execute).split(param);
+		return ((Execute)execute).execute(param);
 	}
 
 
@@ -61,6 +65,6 @@ public class SeqInst extends AbstractInstruction {
 	@Override
 	public Instruction copy() {
 	
-		return new SeqInst(execute, strace);
+		return new SeqInst(execute, copySkeletonTrace());
 	}
 }

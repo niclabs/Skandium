@@ -20,8 +20,10 @@ package cl.niclabs.skandium.instructions;
 import java.util.List;
 import java.util.Stack;
 
-import cl.niclabs.skandium.instructions.Instruction;
+import cl.niclabs.skandium.events.When;
+import cl.niclabs.skandium.events.Where;
 import cl.niclabs.skandium.muscles.Condition;
+import cl.niclabs.skandium.skeletons.Skeleton;
 
 /**
  * This instruction holds the parallelism behavior of an {@link cl.niclabs.skandium.skeletons.If} skeleton.
@@ -30,22 +32,25 @@ import cl.niclabs.skandium.muscles.Condition;
  */
 public class IfInst extends AbstractInstruction {
 	
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes")
 	Condition condition;
 	Stack<Instruction> trueCaseStack, falseCaseStack;
+	int id;
 	
 	/**
 	 * The main condition.
 	 * @param condition Used to decide on the instruction. 
 	 * @param trueCaseStack Code to execute in the true case.
 	 * @param falseCaseStack Code to execute in the false case.
-	 * @param strace 
+	 * @param strace nested skeleton tree branch of the current execution.
 	 */
-	public IfInst(Condition<?> condition, Stack<Instruction> trueCaseStack, Stack<Instruction> falseCaseStack, StackTraceElement[] strace) {
+	public IfInst(Condition<?> condition, Stack<Instruction> trueCaseStack, Stack<Instruction> falseCaseStack, @SuppressWarnings("rawtypes") Skeleton[] strace, int id, int parent) {
 		super(strace);
 		this.condition = condition;
 		this.trueCaseStack = trueCaseStack;
 		this.falseCaseStack = falseCaseStack;
+		this.id = id;
+		this.parent = parent;
 	}
 	
 	/**
@@ -58,13 +63,12 @@ public class IfInst extends AbstractInstruction {
 	@Override
 	public <P> Object interpret(P param, Stack<Instruction> stack, List<Stack<Instruction>> children) throws Exception {
 
-		if(condition.condition(param)){
-			stack.addAll(trueCaseStack);
-		}
-		else{
-			stack.addAll(falseCaseStack);
-		}
-		
+		new EventInst(When.BEFORE, Where.CONDITION, strace, id, false, parent).interpret(param, stack, children);
+		boolean cond = condition.condition(param);
+
+		stack.push(new ChoiceInst(cond, trueCaseStack, falseCaseStack, strace));
+		stack.push(new EventInst(When.AFTER, Where.CONDITION, strace, id, cond, parent));
+
 		return param;
 	}
 
@@ -74,6 +78,21 @@ public class IfInst extends AbstractInstruction {
 	@Override
 	public Instruction copy() {
 		
-		return new IfInst(condition, copyStack(trueCaseStack), copyStack(falseCaseStack), strace);
+		return new IfInst(condition, copyStack(trueCaseStack), copyStack(falseCaseStack), copySkeletonTrace(), id, parent);
+	}
+
+	@Override
+	public void setParent(int parent) {
+		for (Instruction inst : trueCaseStack) {
+			if (inst.getParent() == this.parent) {
+				inst.setParent(parent);
+			}
+		}
+		for (Instruction inst : falseCaseStack) {
+			if (inst.getParent() == this.parent) {
+				inst.setParent(parent);
+			}
+		}
+		super.setParent(parent);
 	}
 }

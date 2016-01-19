@@ -17,12 +17,17 @@
  */
 package cl.niclabs.skandium.instructions;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
 
+import cl.niclabs.skandium.events.When;
+import cl.niclabs.skandium.events.Where;
 import cl.niclabs.skandium.muscles.Condition;
 import cl.niclabs.skandium.muscles.Merge;
 import cl.niclabs.skandium.muscles.Split;
+import cl.niclabs.skandium.skeletons.Skeleton;
+import cl.niclabs.skandium.system.events.EventIdGenerator;
 
 /**
  * This instruction holds the parallelism behavior of a Divide and Conquer ({@link cl.niclabs.skandium.skeletons.DaC}) skeleton.
@@ -31,12 +36,12 @@ import cl.niclabs.skandium.muscles.Split;
  */
 public class DaCInst extends  AbstractInstruction {
 	
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes" )
 	Condition condition;
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes")
 	Split split;
 	Stack<Instruction> substack;
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes")
 	Merge merge;
 	
 	/**
@@ -45,19 +50,22 @@ public class DaCInst extends  AbstractInstruction {
 	 * @param split the code to subdivide.
 	 * @param stack the stack of instructions to execute when the base case is reached.
 	 * @param merge the code to merge the results of a subdivision.
-	 * @param strace 
+	 * @param rbranch current recursive branch.
+	 * @param strace nested skeleton tree branch of the current execution.
 	 */
-	public DaCInst(Condition<?> condition, Split<?, ?> split, Stack<Instruction> stack, Merge<?, ?> merge, StackTraceElement[] strace) {
+	public DaCInst(Condition<?> condition, Split<?, ?> split, Stack<Instruction> stack, Merge<?, ?> merge, 
+			@SuppressWarnings("rawtypes") Skeleton[] strace, int parent) {
 		super(strace);
 		this.condition = condition;
 		this.split = split;
 		this.substack = stack;
 		this.merge = merge;
+		this.parent = parent;
 	}
 
 	/**
 	 * This method evaluates the {@link Condition} muscle with the given <code>param</code>.
-	 * If the {@link Condition} returns true then the <code>param</code> is divided with the {@link Split} muscle,
+	 * If the {@link Condition} returns true then the <code>param</code> is divided with the {@link cl.niclabs.skandium.muscles.Split} muscle,
 	 * and new stacks are created to execute each subparam.
 	 * If the {@link Condition} returns false then this instruction's stack is added to the parameter stack.
 	 * 
@@ -66,41 +74,58 @@ public class DaCInst extends  AbstractInstruction {
 	@SuppressWarnings("unchecked")
 	@Override
 	public <P> Object interpret(P param, Stack<Instruction> stack,List<Stack<Instruction>> children) throws Exception {
+		int id = EventIdGenerator.getSingleton().increment();
 
-		//if condition is true we split 
-		if(condition.condition(param)){
-			
-			Object result[]  =  split.split(param);
-			
-			for(int i = 0 ; i < result.length ; i++){
-				
-				Stack<Instruction> newStack = new Stack<Instruction>();
-				
-				newStack.add(this.copy());
-				
-				children.add(newStack);
+		/* update parent */
+		for (Instruction inst : this.substack) {
+			if (inst.getParent() == parent) {
+				inst.setParent(id);
 			}
-			
-			//Put a merge instruction on the current stack
-			//to merge results when children are finished.
-			stack.push(new MergeInst(merge, strace));
-			
-			return result;
 		}
-		//else we execute 
-		else{
-			stack.addAll(this.substack);
-		}
+		(new EventInst(When.BEFORE, Where.SKELETON, strace, id, false, parent)).interpret(param, stack, children);
+		(new EventInst(When.BEFORE, Where.CONDITION, strace, id, false, parent)).interpret(param, stack, children);
+		boolean cond = condition.condition(param);
+
+		Stack<Instruction> newStack = new Stack<Instruction>();
+		DaCInst subInst = (DaCInst) this.copy();
+		subInst.parent = id;
+		newStack.push(subInst);
+		List<Stack<Instruction>> substacks = new ArrayList<Stack<Instruction>>();
+		substacks.add(newStack);
 		
+		Stack<Instruction> splitStack = new Stack<Instruction>();
+		splitStack.push(new EventInst(When.AFTER, Where.SKELETON, strace, id, false, parent));
+		splitStack.push(new SplitInst(substacks, merge, strace, id, parent));
+		splitStack.push(new EventInst(When.AFTER, Where.SPLIT, strace, id, false, parent));
+		splitStack.push(new SeqInst(split, strace));
+		splitStack.push(new EventInst(When.BEFORE, Where.SPLIT, strace, id, false, parent));
+		
+		Stack<Instruction> execStack = new Stack<Instruction>();
+
+		execStack.addAll(this.substack);
+
+		stack.push(new ChoiceInst(cond, splitStack, execStack, strace));
+		stack.push(new EventInst(When.AFTER, Where.CONDITION, strace, id, cond, parent));
+				
 		return param;
 	}
-
+	
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public Instruction copy() {
-	
-		return new DaCInst(condition, split, copyStack(substack), merge, strace);
+		return new DaCInst(condition, split, copyStack(substack), merge, copySkeletonTrace(), parent);
 	}
+	
+	@Override
+	public void setParent(int parent) {
+		for (Instruction inst : substack) {
+			if (inst.getParent() == this.parent) {
+				inst.setParent(parent);
+			}
+		}		
+		super.setParent(parent);
+	}
+	
 }

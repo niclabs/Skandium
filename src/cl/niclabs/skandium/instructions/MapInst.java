@@ -17,11 +17,15 @@
  */
 package cl.niclabs.skandium.instructions;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
 
+import cl.niclabs.skandium.events.When;
+import cl.niclabs.skandium.events.Where;
 import cl.niclabs.skandium.muscles.Merge;
 import cl.niclabs.skandium.muscles.Split;
+import cl.niclabs.skandium.skeletons.Skeleton;
 
 /**
  * This instruction holds the parallelism behavior of a {@link cl.niclabs.skandium.skeletons.Map} skeleton.
@@ -30,11 +34,12 @@ import cl.niclabs.skandium.muscles.Split;
  */
 public class MapInst extends  AbstractInstruction {
 	
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes")
 	Split split;
 	Stack<Instruction> substack;
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes")
 	Merge merge;
+	int id;
 
 	/**
 	 * The main constructor.
@@ -42,18 +47,20 @@ public class MapInst extends  AbstractInstruction {
 	 * @param split The muscle to divide a param.
 	 * @param stack The code to execute for each subparam.
 	 * @param merge The code to merge the results of the execution of each subparam.
-	 * @param strace 
+	 * @param strace nested skeleton tree branch of the current execution.
 	 */
-	public MapInst(Split<?, ?> split, Stack<Instruction> stack, Merge<?, ?> merge, StackTraceElement[] strace) {
+	public MapInst(Split<?, ?> split, Stack<Instruction> stack, Merge<?, ?> merge, @SuppressWarnings("rawtypes") Skeleton[] strace, int id, int parent) {
 		super(strace);
 
 		this.split=split;
 		this.substack=stack;
 		this.merge=merge;
+		this.id = id;
+		this.parent = parent;
 	}
 
 	/**
-	 * Subdivides param using the {@link Split} muscle, and then a stack is copied for each subparam.
+	 * Subdivides param using the {@link cl.niclabs.skandium.muscles.Split} muscle, and then a stack is copied for each subparam.
 	 *  
 	 * {@inheritDoc} 
 	 */
@@ -61,14 +68,13 @@ public class MapInst extends  AbstractInstruction {
 	@Override
 	public <P> Object interpret(P param, Stack<Instruction> stack, List<Stack<Instruction>> children) throws Exception {
 		
+		(new EventInst(When.BEFORE, Where.SPLIT, strace, id, false, parent)).interpret(param, stack, children);
 		Object[] params = split.split(param);
+		List<Stack<Instruction>> substacks = new ArrayList<Stack<Instruction>>();
+		substacks.add(copyStack(this.substack));
 		
-		for(int i=0;i<params.length;i++){
-			children.add(copyStack(this.substack));
-		}
-		
-		stack.push(new MergeInst(merge, strace));
-
+		stack.push(new SplitInst(substacks, merge, strace, id, parent));
+		stack.push(new EventInst(When.AFTER, Where.SPLIT, strace, id, false, parent));
 		return params;
 	}
 	
@@ -78,6 +84,16 @@ public class MapInst extends  AbstractInstruction {
 	@Override
 	public Instruction copy() {
 		
-		return new MapInst(split, copyStack(substack), merge, strace);
+		return new MapInst(split, copyStack(substack), merge, copySkeletonTrace(), id, parent);
+	}
+
+	@Override
+	public void setParent(int parent) {
+		for (Instruction inst : substack) {
+			if (inst.getParent() == this.parent) {
+				inst.setParent(parent);
+			}
+		}		
+		super.setParent(parent);
 	}
 }
